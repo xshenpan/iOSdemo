@@ -18,13 +18,18 @@ static NSString * const kManagerNotificationKeyTaskNumber = @"XBDownloadManagerT
 
 @protocol XBDownloadManagerDelegate <NSObject>
 @optional
-
-- (void)managerAddTaskName:(NSString *)name andStatus:(XBDownloadTaskStatus)status fileLength:(NSInteger)length forKey:(NSString *)key atIndex:(NSInteger)idx;
+//删除任务时调用,内部保证同一任务的其他代理方法会在该方法之前调用
 - (void)managerDeleteTaskForKey:(NSString *)key atIndex:(NSInteger)idx;
+//获得响应文件长度是调用
 - (void)managerTaskFileLength:(NSInteger)fileLength forKey:(NSString *)key atIndex:(NSInteger)idx;
+//进度和速度更新是调用，由kManagerProgressUpdateInterval控制
 - (void)managerRefreshTaskProgress:(CGFloat)progress speed:(CGFloat)speed forKey:(NSString *)key atIndex:(NSInteger)idx;
+//任务状态改变时调用
 - (void)managerTaskStatusChanged:(XBDownloadTaskStatus)status forKey:(NSString *)key atIndex:(NSInteger)idx;
+//任务完成时调用
 - (void)managerTaskCompleteWithError:(NSError *)error forKey:(NSString *)key atIndex:(NSInteger)idx;
+//添加任务，或设置代理时调用
+- (void)managerAddTaskName:(NSString *)name andStatus:(XBDownloadTaskStatus)status fileLength:(NSInteger)length forKey:(NSString *)key atIndex:(NSInteger)idx;
 
 @end
 
@@ -50,7 +55,7 @@ static NSString * const kManagerNotificationKeyTaskNumber = @"XBDownloadManagerT
 //查询任务
 - (XBDownloadTaskInfo *)taskInfoWithIndex:(NSInteger)idx;
 - (XBDownloadTaskInfo *)taskInfoWithKey:(NSString *)key;
-//设置代理
+//设置代理和代理执行的队列
 - (void)setDelegate:(id<XBDownloadManagerDelegate>)delegate andDelegateQueue:(NSOperationQueue *)queue;
 /** 添加一个下载任务,path=nil这默认在cache/xbdownload目录 路经以home开始, key=nil 则key = url.md5string */
 - (NSString *)addDownloadTaskWithUrl:(NSString *)url andRelativePath:(NSString *)path taskKey:(NSString *)key taskExist:(void(^)(NSString *key))exist;
