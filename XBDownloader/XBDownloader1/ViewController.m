@@ -161,12 +161,13 @@
 
 #pragma mark - DownloadManager代理
 
-- (void)managerAddTaskName:(NSString *)name andStatus:(XBDownloadTaskStatus)status forKey:(NSString *)key atIndex:(NSInteger)idx
+- (void)managerAddTaskName:(NSString *)name andStatus:(XBDownloadTaskStatus)status fileLength:(NSInteger)length forKey:(NSString *)key atIndex:(NSInteger)idx
 {
     XBDownloadTaskInfo *info = [[XBDownloadTaskInfo alloc] init];
     info.name = name;
     info.taskKey = key;
     info.status = status;
+    info.filesize = length;
     [self.cells addObject:info];
 }
 
