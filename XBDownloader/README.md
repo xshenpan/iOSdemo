@@ -22,6 +22,19 @@ self.downloadNum.title = [NSString stringWithFormat:@"%zd", self.downloadManager
         
 }];
 
+//添加任务
+[self.downloadManager addDownloadTaskWithUrl:response.URL.absoluteString andRelativePath:nil taskKey:nil taskExist:^(NSString *key) {
+    
+    UIAlertController *alert = [UIAlertController alertControllerWithTitle:@"任务已经存在" message:@"要重新下载吗？" preferredStyle:UIAlertControllerStyleAlert];
+    UIAlertAction *cancel = [UIAlertAction actionWithTitle:@"取消" style:UIAlertActionStyleDefault handler:nil];
+    UIAlertAction *sure = [UIAlertAction actionWithTitle:@"确定" style:UIAlertActionStyleDestructive handler:^(UIAlertAction * _Nonnull action) {
+        [wself.downloadManager reloadWithKey:key];
+    }];
+    [alert addAction:cancel];
+    [alert addAction:sure];
+    [wself presentViewController:alert animated:YES completion:nil];
+}];
+
 ```
 
 ### 关心任务详情
