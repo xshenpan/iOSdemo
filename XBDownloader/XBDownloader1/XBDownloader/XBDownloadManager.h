@@ -19,7 +19,7 @@ static NSString * const kManagerNotificationKeyTaskNumber = @"XBDownloadManagerT
 @protocol XBDownloadManagerDelegate <NSObject>
 @optional
 
-- (void)managerAddTaskName:(NSString *)name andStatus:(XBDownloadTaskStatus)status forKey:(NSString *)key atIndex:(NSInteger)idx;
+- (void)managerAddTaskName:(NSString *)name andStatus:(XBDownloadTaskStatus)status fileLength:(NSInteger)length forKey:(NSString *)key atIndex:(NSInteger)idx;
 - (void)managerDeleteTaskForKey:(NSString *)key atIndex:(NSInteger)idx;
 - (void)managerTaskFileLength:(NSInteger)fileLength forKey:(NSString *)key atIndex:(NSInteger)idx;
 - (void)managerRefreshTaskProgress:(CGFloat)progress speed:(CGFloat)speed forKey:(NSString *)key atIndex:(NSInteger)idx;

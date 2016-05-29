@@ -118,10 +118,14 @@ static id _instance;
     
     NSBlockOperation *op = [NSBlockOperation blockOperationWithBlock:^{
         //使用delegate而不是_delegate防止在设置代理未完成时导致其他代理方法执行发生错误
-        if ([delegate respondsToSelector:@selector(managerAddTaskName:andStatus:forKey:atIndex:)]) {
+        if ([delegate respondsToSelector:@selector(managerAddTaskName:andStatus:fileLength:forKey:atIndex:)]) {
             for (NSInteger i = 0; i < self.taskQueue.count; ++i) {
                 XBDownloadTaskRecord *rd = self.taskQueue[i];
-                [delegate managerAddTaskName:rd.taskInfo.name andStatus:rd.taskInfo.status forKey:rd.taskInfo.taskKey atIndex:i];
+                [delegate managerAddTaskName:rd.taskInfo.name
+                                   andStatus:rd.taskInfo.status
+                                  fileLength:rd.taskInfo.filesize
+                                      forKey:rd.taskInfo.taskKey
+                                     atIndex:i];
             }
         }
     }];
@@ -457,10 +461,14 @@ static id _instance;
     self.taskDict[record.taskInfo.taskKey] = record;
     [self writeInfoToFile];
     
-    if ([self.delegate respondsToSelector:@selector(managerAddTaskName:andStatus:forKey:atIndex:)]) {
+    if ([self.delegate respondsToSelector:@selector(managerAddTaskName:andStatus:fileLength:forKey:atIndex:)]) {
         NSInteger idx = self.taskQueue.count-1;
         [self.delegateQueue addOperationWithBlock:^{
-            [self.delegate managerAddTaskName:record.taskInfo.name andStatus:record.taskInfo.status forKey:record.taskInfo.taskKey atIndex:idx];
+            [self.delegate managerAddTaskName:record.taskInfo.name
+                                    andStatus:record.taskInfo.status
+                                   fileLength:record.taskInfo.filesize
+                                       forKey:record.taskInfo.taskKey
+                                      atIndex:idx];
         }];
     }
     
