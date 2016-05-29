@@ -27,10 +27,10 @@
                         <nil key="highlightedColor"/>
                     </label>
                     <imageView userInteractionEnabled="NO" contentMode="scaleToFill" horizontalHuggingPriority="251" verticalHuggingPriority="251" image="zip" translatesAutoresizingMaskIntoConstraints="NO" id="ZQL-Kk-wrz">
-                        <rect key="frame" x="10" y="10" width="60" height="59"/>
+                        <rect key="frame" x="5" y="15" width="50" height="49"/>
                         <constraints>
                             <constraint firstAttribute="width" constant="85" id="Gpo-VG-rY5"/>
-                            <constraint firstAttribute="width" constant="60" id="RdS-38-t0b"/>
+                            <constraint firstAttribute="width" constant="50" id="RdS-38-t0b"/>
                             <constraint firstAttribute="height" constant="88" id="wk7-Xa-x7j"/>
                         </constraints>
                         <variation key="default">
@@ -41,23 +41,23 @@
                         </variation>
                     </imageView>
                     <label opaque="NO" userInteractionEnabled="NO" contentMode="left" horizontalHuggingPriority="251" verticalHuggingPriority="251" text="Label" textAlignment="natural" lineBreakMode="tailTruncation" baselineAdjustment="alignBaselines" adjustsFontSizeToFit="NO" translatesAutoresizingMaskIntoConstraints="NO" id="mv7-ye-n2F">
-                        <rect key="frame" x="90" y="52" width="36" height="17"/>
+                        <rect key="frame" x="65" y="47" width="36" height="17"/>
                         <fontDescription key="fontDescription" type="system" pointSize="14"/>
                         <color key="textColor" white="0.66666666666666663" alpha="1" colorSpace="calibratedWhite"/>
                         <nil key="highlightedColor"/>
                     </label>
                     <label opaque="NO" userInteractionEnabled="NO" contentMode="left" horizontalHuggingPriority="251" verticalHuggingPriority="251" text="Label" textAlignment="center" lineBreakMode="tailTruncation" baselineAdjustment="alignBaselines" adjustsFontSizeToFit="NO" translatesAutoresizingMaskIntoConstraints="NO" id="RXh-sK-raf">
-                        <rect key="frame" x="136" y="52" width="36" height="17"/>
+                        <rect key="frame" x="111" y="47" width="36" height="17"/>
                         <fontDescription key="fontDescription" type="system" pointSize="14"/>
                         <color key="textColor" white="0.66666666666666663" alpha="1" colorSpace="calibratedWhite"/>
                         <nil key="highlightedColor"/>
                     </label>
                     <label opaque="NO" userInteractionEnabled="NO" contentMode="left" horizontalHuggingPriority="251" verticalHuggingPriority="251" text="Label" textAlignment="natural" lineBreakMode="tailTruncation" baselineAdjustment="alignBaselines" adjustsFontSizeToFit="NO" translatesAutoresizingMaskIntoConstraints="NO" id="z1b-tG-C4x">
-                        <rect key="frame" x="90" y="29" width="100" height="21"/>
+                        <rect key="frame" x="65" y="31" width="100" height="18"/>
                         <constraints>
                             <constraint firstAttribute="width" constant="100" id="W3s-he-DnI"/>
                         </constraints>
-                        <fontDescription key="fontDescription" type="system" pointSize="17"/>
+                        <fontDescription key="fontDescription" type="system" pointSize="15"/>
                         <color key="textColor" cocoaTouchSystemColor="darkTextColor"/>
                         <nil key="highlightedColor"/>
                     </label>
@@ -71,11 +71,11 @@
                     <constraint firstItem="RXh-sK-raf" firstAttribute="centerY" secondItem="mv7-ye-n2F" secondAttribute="centerY" id="NlJ-xY-37c"/>
                     <constraint firstItem="8g1-6W-ppP" firstAttribute="centerY" secondItem="6Oa-ap-zuO" secondAttribute="centerY" id="XGb-WN-7gT"/>
                     <constraint firstItem="6Oa-ap-zuO" firstAttribute="centerY" secondItem="ZQL-Kk-wrz" secondAttribute="centerY" id="aRu-MF-1oc"/>
-                    <constraint firstItem="z1b-tG-C4x" firstAttribute="leading" secondItem="ZQL-Kk-wrz" secondAttribute="trailing" constant="20" id="cHc-ch-gVL"/>
-                    <constraint firstAttribute="bottom" secondItem="ZQL-Kk-wrz" secondAttribute="bottom" constant="10" id="f8T-qw-t4h"/>
+                    <constraint firstItem="z1b-tG-C4x" firstAttribute="leading" secondItem="ZQL-Kk-wrz" secondAttribute="trailing" constant="10" id="cHc-ch-gVL"/>
+                    <constraint firstAttribute="bottom" secondItem="ZQL-Kk-wrz" secondAttribute="bottom" constant="15" id="f8T-qw-t4h"/>
                     <constraint firstItem="mv7-ye-n2F" firstAttribute="bottom" secondItem="ZQL-Kk-wrz" secondAttribute="bottom" id="jPJ-Z3-o43"/>
-                    <constraint firstItem="ZQL-Kk-wrz" firstAttribute="top" secondItem="H2p-sc-9uM" secondAttribute="top" constant="10" id="pcO-t2-bnS"/>
-                    <constraint firstItem="ZQL-Kk-wrz" firstAttribute="leading" secondItem="H2p-sc-9uM" secondAttribute="leading" constant="10" id="rQB-az-RaA"/>
+                    <constraint firstItem="ZQL-Kk-wrz" firstAttribute="top" secondItem="H2p-sc-9uM" secondAttribute="top" constant="15" id="pcO-t2-bnS"/>
+                    <constraint firstItem="ZQL-Kk-wrz" firstAttribute="leading" secondItem="H2p-sc-9uM" secondAttribute="leading" constant="5" id="rQB-az-RaA"/>
                     <constraint firstItem="8g1-6W-ppP" firstAttribute="leading" secondItem="6Oa-ap-zuO" secondAttribute="trailing" constant="20" id="xTZ-Uh-T8s"/>
                 </constraints>
                 <variation key="default">

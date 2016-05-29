@@ -72,6 +72,7 @@ static id _instance;
             //先改变状态再结束任务
             [self changeTaskStatus:XBDownloadTaskStatusWaiting withRecord:record];
             [record.task cancel];
+            self.currentTask--;
             record.task = nil;
             if (self.currentTask <= _maxDownloadTask) {
                 break;
@@ -233,18 +234,17 @@ static id _instance;
 {
     XBDownloadTaskRecord *record = self.taskDict[key];
     if (record == nil) return;
-    
+    record.startup = NO;
     if (record.taskInfo.status == XBDownloadTaskStatusRunning) {
-        //cancel时会将任务数减一然后启动等待任务，所以先占用一个任务数
-        self.currentTask++;
+        //不执行currentTask--，即先占用一个任务数
         [record.task cancel];
         record.task = nil;
         [[NSFileManager defaultManager] removeItemAtPath:[kDownloadDirictory stringByAppendingPathComponent:record.taskInfo.taskKey] error:nil];
-        //归还任务数,启动当前需要重载的任务
+        record.taskInfo.status = XBDownloadTaskStatusWaiting;
+        //当前任务数减1,此时相当于有一个任务未启动,然后立即启动当前需要重载的任务
         self.currentTask--;
         [self tryStartupTheTask:record];
     }else {
-        record.startup = NO;
         [[NSFileManager defaultManager] removeItemAtPath:[kDownloadDirictory stringByAppendingPathComponent:record.taskInfo.taskKey] error:nil];
         [self tryStartupTheTask:record];
     }
@@ -262,6 +262,7 @@ static id _instance;
     if (record.task) {
         [record.task cancel];
         record.task = nil;
+        self.currentTask--;
     }
     [self changeTaskStatus:XBDownloadTaskStatusPause withRecord:record];
     [self tryStartupWaitingTask];
@@ -272,8 +273,8 @@ static id _instance;
     if (record.task) {
         [record.task cancel];
         record.task = nil;
+        self.currentTask--;
     }
-    record.taskInfo.status = XBDownloadTaskStatusCancel;
     [self removeTaskWithRecord:record];
     [self tryStartupWaitingTask];
     // 移除临时文件
@@ -422,7 +423,10 @@ static id _instance;
             }
             [weakSelf removeTaskWithRecord:taskRecord];
             
-        }else if (error.code != NSURLErrorCancelled){
+        }else{
+            //主动关闭任务
+            if (error.code == NSURLErrorCancelled) return;
+            
             [self changeTaskStatus:XBDownloadTaskStatusError withRecord:taskRecord];
             //通知代理任务完成
             if ([self.delegate respondsToSelector:@selector(managerTaskCompleteWithError:forKey:atIndex:)]) {
@@ -477,10 +481,12 @@ static id _instance;
     
     if ([self.delegate respondsToSelector:@selector(managerDeleteTaskForKey:atIndex:)]) {
         //等待其他代理执行完成
+        XBWARNLOG(@"will call remove delegate");
         [self.delegateQueue waitUntilAllOperationsAreFinished];
         [self.delegateQueue addOperationWithBlock:^{
             [self.delegate managerDeleteTaskForKey:record.taskInfo.taskKey atIndex:idx];
         }];
+        XBWARNLOG(@"did call remove delegate");
     }
     
     NSDictionary *dict = @{kManagerNotificationKeyTaskNumber : @(self.taskQueue.count)};

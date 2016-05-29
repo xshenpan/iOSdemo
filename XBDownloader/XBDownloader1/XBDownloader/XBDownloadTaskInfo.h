@@ -13,7 +13,6 @@ typedef enum : NSInteger {
     XBDownloadTaskStatusPause,
     XBDownloadTaskStatusRunning,
     XBDownloadTaskStatusComplete,
-    XBDownloadTaskStatusCancel,
     XBDownloadTaskStatusError = 0x1000,
 } XBDownloadTaskStatus;
 
