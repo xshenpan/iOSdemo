@@ -12,6 +12,9 @@
 
 @interface XBTableViewCell : UITableViewCell
 
-+ (instancetype)cellWithTableView:(UITableView *)tableView andXBCell:(XBDownloadTaskInfo*)cellModel;
+/** 模型 */
+@property (nonatomic, strong) XBDownloadTaskInfo *info;
+
++ (instancetype)cellWithTableView:(UITableView *)tableView;
 
 @end

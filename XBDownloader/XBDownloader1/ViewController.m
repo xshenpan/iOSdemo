@@ -83,25 +83,23 @@
 
 @implementation ViewController
 
-- (void)viewDidLoad {
-    [super viewDidLoad];
-    
-    //下载管理的界面
-    //获取单利对象
-    self.manager = [XBDownloadManager manager];
-    //设置代理
-    self.manager.delegate = self;
-    
-    self.stepper.value = self.manager.maxDownloadTask;
-    self.concurrentLabel.text = [NSString stringWithFormat:@"%zd", self.manager.maxDownloadTask];
-}
-
 - (NSMutableArray<XBDownloadTaskInfo *> *)cells
 {
     if (_cells == nil) {
         _cells = [NSMutableArray array];
     }
     return _cells;
+}
+
+- (void)viewDidLoad {
+    [super viewDidLoad];
+    
+    //下载管理的界面
+    //获取单利对象
+    self.manager = [XBDownloadManager manager];
+    [self.manager setDelegate:self andDelegateQueue:[NSOperationQueue mainQueue]];
+    self.stepper.value = self.manager.maxDownloadTask;
+    self.concurrentLabel.text = [NSString stringWithFormat:@"%zd", self.manager.maxDownloadTask];
 }
 
 #pragma mark - 监听按钮点击
@@ -131,9 +129,9 @@
 - (UITableViewCell *)tableView:(UITableView *)tableView cellForRowAtIndexPath:(NSIndexPath *)indexPath
 {
 
-    XBDownloadTaskInfo *model = self.cells[indexPath.row];
-    XBTableViewCell *cell = [XBTableViewCell cellWithTableView:tableView andXBCell:model];
-    
+    XBDownloadTaskInfo *info = self.cells[indexPath.row];
+    XBTableViewCell *cell = [XBTableViewCell cellWithTableView:tableView];
+    cell.info = info;
     return cell;
 }
 
@@ -163,53 +161,48 @@
 
 #pragma mark - DownloadManager代理
 
-- (void)managerTaskList:(NSArray<XBDownloadTaskInfo *> *)taskList
+- (void)managerAddTaskName:(NSString *)name andStatus:(XBDownloadTaskStatus)status forKey:(NSString *)key atIndex:(NSInteger)idx
 {
-    //直接将任务信息作为模型数据
-    for (XBDownloadTaskInfo *info in taskList) {
-        [self.cells addObject:info];
-    }
-    [self.tableView reloadData];
+    XBDownloadTaskInfo *info = [[XBDownloadTaskInfo alloc] init];
+    info.name = name;
+    info.taskKey = key;
+    info.status = status;
+    [self.cells addObject:info];
 }
 
-- (void)managerTaskStatusChanged:(XBDownloadTaskInfo *)taskInfo atIndex:(NSInteger)idx
+- (void)managerDeleteTaskForKey:(NSString *)key atIndex:(NSInteger)idx
 {
-    [[NSOperationQueue mainQueue] addOperationWithBlock:^{
-        [self.tableView reloadRowsAtIndexPaths:@[[NSIndexPath indexPathForItem:idx inSection:0]] withRowAnimation:UITableViewRowAnimationNone];
-    }];
+    [self.cells removeObjectAtIndex:idx];
+    [self.tableView deleteRowsAtIndexPaths:@[[NSIndexPath indexPathForItem:idx inSection:0]] withRowAnimation:UITableViewRowAnimationRight];
 }
 
-- (void)managerTaskListChange:(XBDownloadTaskInfo *)taskInfo isDelete:(BOOL)isDelete atIndex:(NSInteger)idx
+- (void)managerTaskStatusChanged:(XBDownloadTaskStatus)status forKey:(NSString *)key atIndex:(NSInteger)idx
 {
-    if (isDelete == YES) {
-        //删除下载任务
-        [[NSOperationQueue mainQueue] addOperationWithBlock:^{
-            [self.cells removeObjectAtIndex:idx];
-            [self.tableView deleteRowsAtIndexPaths:@[[NSIndexPath indexPathForItem:idx inSection:0]] withRowAnimation:UITableViewRowAnimationRight];
-        }];
-    }else{
-        //增加下载任务
-        [[NSOperationQueue mainQueue] addOperationWithBlock:^{
-            [self.cells insertObject:taskInfo atIndex:idx];
-            [self.tableView insertRowsAtIndexPaths:@[[NSIndexPath indexPathForItem:idx inSection:0]] withRowAnimation:UITableViewRowAnimationNone];
-        }];
-    }
+    XBTableViewCell *cell = [self.tableView cellForRowAtIndexPath:[NSIndexPath indexPathForItem:idx inSection:0]];
+    self.cells[idx].status = status;
+    cell.info = self.cells[idx];
 }
 
-- (void)managerTaskProgressRefresh:(XBDownloadTaskInfo *)taskInfo atIndex:(NSInteger)idx
+- (void)managerRefreshTaskProgress:(CGFloat)progress speed:(CGFloat)speed forKey:(NSString *)key atIndex:(NSInteger)idx
 {
-    [[NSOperationQueue mainQueue] addOperationWithBlock:^{
-        [self.tableView reloadRowsAtIndexPaths:@[[NSIndexPath indexPathForItem:idx inSection:0]] withRowAnimation:UITableViewRowAnimationNone];
-//        XBTableViewCell *cell = [self.tableView cellForRowAtIndexPath:[NSIndexPath indexPathForItem:idx inSection:0]];
-//        [cell setValue:[NSString stringWithFormat:@"%.2f%%", taskInfo.progress*100] forKeyPath:@"progress.text"];
-//        [cell setValue:[NSString stringWithFormat:@"%.1fKB/s", taskInfo.speed] forKeyPath:@"speedLabel.text"];
-    }];
+    XBTableViewCell *cell = [self.tableView cellForRowAtIndexPath:[NSIndexPath indexPathForItem:idx inSection:0]];
+    self.cells[idx].progress = progress;
+    self.cells[idx].speed = speed;
+    cell.info = self.cells[idx];
 }
 
-- (void)managerTask:(XBDownloadTaskInfo *)taskInfo didCompleteWithError:(NSError *)error atIndex:(NSInteger)idx
+- (void)managerTaskFileLength:(NSInteger)fileLength forKey:(NSString *)key atIndex:(NSInteger)idx
 {
-    
+    XBTableViewCell *cell = [self.tableView cellForRowAtIndexPath:[NSIndexPath indexPathForItem:idx inSection:0]];
+    self.cells[idx].filesize = fileLength;
+    cell.info = self.cells[idx];
 }
+
+- (void)managerTaskCompleteWithError:(NSError *)error forKey:(NSString *)key atIndex:(NSInteger)idx
+{
+
+}
+
 
 
 @end

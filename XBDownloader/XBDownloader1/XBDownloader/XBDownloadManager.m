@@ -16,11 +16,13 @@
 
 @interface XBDownloadManager() <NSURLSessionDataDelegate>
 
-@property (nonatomic, strong) NSMutableDictionary<NSString*, XBDownloadTaskRecord*> *taskRecord;
+@property (nonatomic, strong) NSMutableDictionary<NSString*, XBDownloadTaskRecord*> *taskDict;
 @property (nonatomic, strong) NSMutableArray<XBDownloadTaskRecord*> *taskQueue;
-@property (nonatomic, assign) NSInteger currentTask;
+@property (nonatomic, strong) NSOperationQueue *delegateQueue;
 @property (nonatomic, assign) NSUInteger count;
-@end
+@property (atomic, assign) NSInteger currentTask;
+
+@end 
 
 @implementation XBDownloadManager
 
@@ -58,12 +60,10 @@ static id _instance;
     if (maxDownloadTask < 1 || maxDownloadTask > 10) return;
     _maxDownloadTask = maxDownloadTask;
     if (_maxDownloadTask > self.currentTask) {
-        NSLOG(@"setMaxDownload>>> = %zd", self.currentTask);
         while ([self tryStartupWaitingTask] != -1);
-        NSLOG(@"setMaxDownload>>>... = %zd", self.currentTask);
     }else if (_maxDownloadTask < self.currentTask){
+        //将多于指定数量的正在执行的任务变更为等待状态
         XBDownloadTaskRecord *record = nil;
-        NSLOG(@"setMaxDownload<<< = %zd", self.currentTask);
         for (NSInteger i = self.taskQueue.count-1; i >= 0; --i) {
             record = self.taskQueue[i];
             if (record.taskInfo.status != XBDownloadTaskStatusRunning) {
@@ -73,22 +73,20 @@ static id _instance;
             [self changeTaskStatus:XBDownloadTaskStatusWaiting withRecord:record];
             [record.task cancel];
             record.task = nil;
-            self.currentTask--;
             if (self.currentTask <= _maxDownloadTask) {
                 break;
             }
         }
-        NSLOG(@"setMaxDownload<<<... = %zd", self.currentTask);
     }
     _maxDownloadTask = maxDownloadTask;
 }
 
-- (NSMutableDictionary<NSString *,XBDownloadTaskRecord *> *)taskRecord
+- (NSMutableDictionary<NSString *,XBDownloadTaskRecord *> *)taskDict
 {
-    if (_taskRecord == nil) {
-        _taskRecord = [NSMutableDictionary dictionary];
+    if (_taskDict == nil) {
+        _taskDict = [NSMutableDictionary dictionary];
     }
-    return _taskRecord;
+    return _taskDict;
 }
 
 - (NSMutableArray<XBDownloadTaskRecord *> *)taskQueue
@@ -97,54 +95,48 @@ static id _instance;
         _taskQueue = [self readInfoFromFile];
         if (_taskQueue == nil) {
             _taskQueue = [NSMutableArray array];
-        }
-        for (XBDownloadTaskRecord *record in _taskQueue) {
-            record.taskInfo.taskKey = record.taskInfo.url.md5String;
-            if (record.taskInfo.relativePath == nil){
-                record.taskInfo.name = [record.taskInfo.url lastPathComponent];
-            }else{
-                record.taskInfo.name = [record.taskInfo.relativePath lastPathComponent];
+        }else{
+            for (XBDownloadTaskRecord *record in _taskQueue) {
+                if (record.taskInfo.relativePath == nil){
+                    record.taskInfo.name = [record.taskInfo.url lastPathComponent];
+                }else{
+                    record.taskInfo.name = [record.taskInfo.relativePath lastPathComponent];
+                }
+                self.taskDict[record.taskInfo.taskKey] = record;
+                record.taskInfo.status = XBDownloadTaskStatusPause;
             }
-            
-            self.taskRecord[record.taskInfo.taskKey] = record;
-            record.taskInfo.status = XBDownloadTaskStatusPause;
         }
     }
     return _taskQueue;
 }
 
-- (void)setDelegate:(id<XBDownloadManagerDelegate>)delegate
+- (void)setDelegate:(id<XBDownloadManagerDelegate>)delegate andDelegateQueue:(NSOperationQueue *)queue
 {
-    if (delegate == nil) return;
+    if (queue == nil || delegate == nil) return;
+    self.delegateQueue = queue;
     
-    //使用delegate而不是_delegate防止在设置代理未完成时导致其他代理方法执行发生错误
-    if ([delegate respondsToSelector:@selector(managerTaskList:)]) {
-        NSMutableArray *taskList = [NSMutableArray array];
-        for (XBDownloadTaskRecord *rd in self.taskQueue) {
-            [taskList addObject:rd.taskInfo];
+    NSBlockOperation *op = [NSBlockOperation blockOperationWithBlock:^{
+        //使用delegate而不是_delegate防止在设置代理未完成时导致其他代理方法执行发生错误
+        if ([delegate respondsToSelector:@selector(managerAddTaskName:andStatus:forKey:atIndex:)]) {
+            for (NSInteger i = 0; i < self.taskQueue.count; ++i) {
+                XBDownloadTaskRecord *rd = self.taskQueue[i];
+                [delegate managerAddTaskName:rd.taskInfo.name andStatus:rd.taskInfo.status forKey:rd.taskInfo.taskKey atIndex:i];
+            }
         }
-        [delegate managerTaskList:taskList];
+    }];
+    
+    if ([[NSOperationQueue currentQueue] isEqual:self.delegateQueue]) {
+        [op start];
+    }else{
+        [self.delegateQueue addOperations:@[op] waitUntilFinished:YES];
     }
+    
     _delegate = delegate;
 }
-
 
 - (NSInteger)taskNumber
 {
     return self.taskQueue.count;
-}
-
-#pragma mark - 查询方法 --- 外部接口
-
-- (XBDownloadTaskInfo *)taskInfoWithIndex:(NSInteger)idx
-{
-    if (idx >= self.taskQueue.count) return nil;
-    return self.taskQueue[idx].taskInfo;
-}
-
-- (XBDownloadTaskInfo *)taskInfoWithKey:(NSString *)key
-{
-    return self.taskRecord[key].taskInfo;
 }
 
 #pragma mark - 开始/暂停/关闭任务--外部接口
@@ -186,7 +178,7 @@ static id _instance;
 
 -(void)startWithKey:(NSString *)key
 {
-    XBDownloadTaskRecord *record = self.taskRecord[key];
+    XBDownloadTaskRecord *record = self.taskDict[key];
     if (record == nil) return;
     
     [self startTask:record];
@@ -206,7 +198,7 @@ static id _instance;
 
 - (void)pauseWithKey:(NSString *)key
 {
-    XBDownloadTaskRecord *record = self.taskRecord[key];
+    XBDownloadTaskRecord *record = self.taskDict[key];
     if (record == nil) return;
     
     [self pauseTask:record];
@@ -227,12 +219,36 @@ static id _instance;
 
 -(void)cancelWithKey:(NSString *)key
 {
-    XBDownloadTaskRecord *record = self.taskRecord[key];
+    XBDownloadTaskRecord *record = self.taskDict[key];
     if (record == nil) return;
     
     [self cancelTask:record];
 }
 
+/**
+ *  重新下载任务
+ */
+
+- (void)reloadWithKey:(NSString *)key
+{
+    XBDownloadTaskRecord *record = self.taskDict[key];
+    if (record == nil) return;
+    
+    if (record.taskInfo.status == XBDownloadTaskStatusRunning) {
+        //cancel时会将任务数减一然后启动等待任务，所以先占用一个任务数
+        self.currentTask++;
+        [record.task cancel];
+        record.task = nil;
+        [[NSFileManager defaultManager] removeItemAtPath:[kDownloadDirictory stringByAppendingPathComponent:record.taskInfo.taskKey] error:nil];
+        //归还任务数,启动当前需要重载的任务
+        self.currentTask--;
+        [self tryStartupTheTask:record];
+    }else {
+        record.startup = NO;
+        [[NSFileManager defaultManager] removeItemAtPath:[kDownloadDirictory stringByAppendingPathComponent:record.taskInfo.taskKey] error:nil];
+        [self tryStartupTheTask:record];
+    }
+}
 
 #pragma mark - 启动/暂停/关闭任务--公共方法
 
@@ -243,13 +259,11 @@ static id _instance;
 
 - (void)pauseTask:(XBDownloadTaskRecord *)record
 {
-    //先改变状态再关闭任务，不然后面会将任务当成异常结束
-    [self changeTaskStatus:XBDownloadTaskStatusPause withRecord:record];
     if (record.task) {
         [record.task cancel];
         record.task = nil;
-        self.currentTask--;
     }
+    [self changeTaskStatus:XBDownloadTaskStatusPause withRecord:record];
     [self tryStartupWaitingTask];
 }
 
@@ -257,13 +271,12 @@ static id _instance;
 {
     if (record.task) {
         [record.task cancel];
-        self.currentTask--;
         record.task = nil;
     }
     record.taskInfo.status = XBDownloadTaskStatusCancel;
     [self removeTaskWithRecord:record];
     [self tryStartupWaitingTask];
-    // 移除临时文件，不管任务有没有
+    // 移除临时文件
     [[[NSOperationQueue alloc] init] addOperationWithBlock:^{
         [[NSFileManager defaultManager] removeItemAtPath:[kDownloadDirictory stringByAppendingPathComponent:record.taskInfo.taskKey] error:nil];
     }];
@@ -271,35 +284,32 @@ static id _instance;
 
 
 #pragma mark - 添加一个下载信息
-- (NSString *)addDownloadTaskWithUrl:(NSString *)url andRelativePath:(NSString *)path taskExistReload:(BOOL (^)())reload
+- (NSString *)addDownloadTaskWithUrl:(NSString *)url andRelativePath:(NSString *)path taskKey:(NSString *)key taskExist:(void(^)(NSString *key))exist
 {
-    NSString *taskKey = url.md5String;
-    XBDownloadTaskRecord *record = self.taskRecord[taskKey];
+    NSString *taskKey = (key == nil) ? url.md5String : key;
+    XBDownloadTaskRecord *record = self.taskDict[taskKey];
     
     if (record == nil) {
         //任务没有被创建,创建一条记录
         record = [[XBDownloadTaskRecord alloc] init];
+        record.startup = NO;
         record.taskInfo.taskKey = taskKey;
-        
         record.taskInfo.url = url;
-        record.taskInfo.status = XBDownloadTaskStatusBorn;
+        record.taskInfo.status = XBDownloadTaskStatusWaiting;
         record.taskInfo.relativePath = path;
         record.taskInfo.name = path == nil ? [url lastPathComponent] : [path lastPathComponent];
         //将任务加入到任务信息队列中
         [self addTaskWithRecord:record];
         [self tryStartupTheTask:record];
         
-    }else if (record.taskInfo.status == XBDownloadTaskStatusRunning){
-        //任务正在运行,检查是否重新下载
-        if(reload){
-            //cancel任务，重新加到下载任务中
-        }
+    }else {
+        if(exist == nil) return taskKey;
+        exist(record.taskInfo.taskKey);
     }
-    
     return taskKey;
 }
 
-#pragma mark - 内部管理逻辑
+#pragma mark - 内部逻辑
 /**
  *  尝试启动指定的任务
  */
@@ -309,10 +319,10 @@ static id _instance;
     if (self.currentTask >= self.maxDownloadTask) {
         //任务达到上限,更改任务的状态为等待
         [self changeTaskStatus:XBDownloadTaskStatusWaiting withRecord:taskRecord];
-        NSLOG(@"return trystarup record = %zd", self.currentTask);
         return;
     }
-    NSLOG(@"startup trystarup record = %zd", self.currentTask);
+    //占用一个任务
+    self.currentTask++;
     [self startupTaskWithRecord:taskRecord];
 }
 
@@ -322,17 +332,16 @@ static id _instance;
 - (NSInteger)tryStartupWaitingTask
 {
     if (self.currentTask >= self.maxDownloadTask) return -1;
-    //从任务信息队列中取出未执行或等待执行的任务
+    //可能有任务被启动，先占用一个任务数量
+    self.currentTask++;
     for (XBDownloadTaskRecord *record in self.taskQueue) {
-        if (record.taskInfo.status == XBDownloadTaskStatusWaiting ||
-            record.taskInfo.status == XBDownloadTaskStatusBorn) {
-            
+        if (record.taskInfo.status == XBDownloadTaskStatusWaiting) {
             [self startupTaskWithRecord:record];
-            NSLOG(@"0 trystarup = %zd", self.currentTask);
             return 0;
         }
     }
-    NSLOG(@"-1 trystarup = %zd", self.currentTask);
+    //在对列中没有找到合适的任务，归还占用的任务数
+    self.currentTask--;
     return -1;
 }
 /**
@@ -340,7 +349,6 @@ static id _instance;
  */
 - (void)startupTaskWithRecord:(XBDownloadTaskRecord *)taskRecord
 {
-    self.currentTask++;
     if (taskRecord.task) {
         //任务对象存在，直接启动
         [taskRecord.task start];
@@ -348,18 +356,16 @@ static id _instance;
     }
     
     NSMutableURLRequest *request = [NSMutableURLRequest requestWithURL:[NSURL URLWithString:taskRecord.taskInfo.url]];
-    //任务对象不存在
-    if (taskRecord.taskInfo.status != XBDownloadTaskStatusBorn) {
-    //任务启动过,但任务对象被销毁了,需要设置请求的范围
+    
+    if (taskRecord.startup != YES) {
+        //任务启动过,但任务对象被销毁了,需要设置请求的范围
         if (taskRecord.taskInfo.taskKey == nil) taskRecord.taskInfo.taskKey = taskRecord.taskInfo.url.md5String;
         NSString *filePath = [kDownloadDirictory stringByAppendingPathComponent:taskRecord.taskInfo.taskKey];
         NSInteger size = [[[NSFileManager defaultManager] attributesOfItemAtPath:filePath error:nil][NSFileSize] integerValue];
         [request setValue:[NSString stringWithFormat:@"bytes=%zd-",size] forHTTPHeaderField:@"Range"];
         taskRecord.tmpFileSize = size;
-    }else{
-        //任务在程序运行期间添加进来，并且没有启动过
     }
-    [self changeTaskStatus:XBDownloadTaskStatusRunning withRecord:taskRecord];
+    
     [self writeInfoToFile];
     
     __weak typeof(self) weakSelf = self;
@@ -367,21 +373,28 @@ static id _instance;
     XBDownloadTask *dwTask = [XBDownloadTask downloadWithRequest:request andTempFileName:taskRecord.taskInfo.taskKey];
     
     [dwTask setProgressBlock:^(NSInteger bytesRead, NSInteger totalBytesRead, NSInteger totalBytesExpectedToRead) {
+        
         NSInteger diff = _count - taskRecord.timerFlag;
         if (diff > 0) {
-            
-            if ([self.delegate respondsToSelector:@selector(managerTaskProgressRefresh:atIndex:)]) {
-                taskRecord.sync++;
+            if ([self.delegate respondsToSelector:@selector(managerRefreshTaskProgress:speed:forKey:atIndex:)]) {
+                //0.5s * diff间隔内的数据差值
+                NSInteger idx = [self.taskQueue indexOfObject:taskRecord];
+                
                 if (taskRecord.taskInfo.filesize == 0) {
                     taskRecord.taskInfo.filesize = taskRecord.tmpFileSize + totalBytesExpectedToRead;
+                    if ([self.delegate respondsToSelector:@selector(managerTaskFileLength:forKey:atIndex:)]) {
+                        [self.delegateQueue addOperationWithBlock:^{
+                            [self.delegate managerTaskFileLength:taskRecord.taskInfo.filesize forKey:taskRecord.taskInfo.taskKey atIndex:idx];
+                        }];
+                    }
                 }
-                //0.5s * diff间隔内的数据差值
                 NSInteger diffBytes = totalBytesRead - taskRecord.bytesLength;
                 taskRecord.taskInfo.speed = diffBytes / (kManagerProgressUpdateInterval * diff * 1024); //  KB/s
                 taskRecord.taskInfo.progress = (taskRecord.tmpFileSize + totalBytesRead)*1.0 / taskRecord.taskInfo.filesize;
-                NSInteger idx = [self.taskQueue indexOfObject:taskRecord];
-                [self.delegate managerTaskProgressRefresh:taskRecord.taskInfo atIndex:idx];
-                taskRecord.sync--;
+                
+                [self.delegateQueue addOperationWithBlock:^{
+                    [self.delegate managerRefreshTaskProgress:taskRecord.taskInfo.progress speed:taskRecord.taskInfo.speed forKey:taskRecord.taskInfo.taskKey atIndex:idx];
+                }];
             }
             taskRecord.timerFlag = _count;
             taskRecord.bytesLength = totalBytesRead;
@@ -389,17 +402,9 @@ static id _instance;
     }];
     
     [dwTask setCompleteBlock:^(NSString *filePath, NSError *error) {
+        
+        NSInteger idx = [self.taskQueue indexOfObject:taskRecord];
         if (!error) {
-            
-            [self changeTaskStatus:XBDownloadTaskStatusComplete withRecord:taskRecord];
-            if ([self.delegate respondsToSelector:@selector(managerTask:didCompleteWithError:atIndex:)]) {
-                taskRecord.sync++;
-                NSInteger idx = [self.taskQueue indexOfObject:taskRecord];
-                [self.delegate managerTask:taskRecord.taskInfo didCompleteWithError:error atIndex:idx];
-                taskRecord.sync--;
-            }
-            
-            [weakSelf removeTaskWithRecord:taskRecord];
             //移动临时文件到指定文件夹
             NSString *dstPath = taskRecord.taskInfo.relativePath;
             if (dstPath == nil) {
@@ -407,21 +412,25 @@ static id _instance;
             }else{
                 dstPath = [NSHomeDirectory() stringByAppendingPathComponent:dstPath];
             }
-            
             [weakSelf moveFileAtPath:filePath toPath:dstPath];
             
-        }else{
-            
-            if (taskRecord.taskInfo.status != XBDownloadTaskStatusRunning) return;
-            //如果是运行状态导致的错误，通知代理发生错误
-            [self changeTaskStatus:XBDownloadTaskStatusError withRecord:taskRecord];
-            if ([self.delegate respondsToSelector:@selector(managerTask:didCompleteWithError:atIndex:)]) {
-                taskRecord.sync++;
-                NSInteger idx = [self.taskQueue indexOfObject:taskRecord];
-                [self.delegate managerTask:taskRecord.taskInfo didCompleteWithError:error atIndex:idx];
-                taskRecord.sync--;
+            //通知代理任务完成
+            if ([self.delegate respondsToSelector:@selector(managerTaskCompleteWithError:forKey:atIndex:)]) {
+                [self.delegateQueue addOperationWithBlock:^{
+                    [self.delegate managerTaskCompleteWithError:error forKey:taskRecord.taskInfo.taskKey atIndex:idx];
+                }];
             }
-            NSLOG(@"download error---%@",error);
+            [weakSelf removeTaskWithRecord:taskRecord];
+            
+        }else if (error.code != NSURLErrorCancelled){
+            [self changeTaskStatus:XBDownloadTaskStatusError withRecord:taskRecord];
+            //通知代理任务完成
+            if ([self.delegate respondsToSelector:@selector(managerTaskCompleteWithError:forKey:atIndex:)]) {
+                [self.delegateQueue addOperationWithBlock:^{
+                    [self.delegate managerTaskCompleteWithError:error forKey:taskRecord.taskInfo.taskKey atIndex:idx];
+                }];
+            }
+            XBWARNLOG(@"download error---%@",error);
         }
         //启动一个等待任务
         self.currentTask--;
@@ -430,59 +439,95 @@ static id _instance;
     
     taskRecord.task = dwTask;
     [dwTask start];
-    NSLOG(@"starup task = %zd", self.currentTask);
+    [self changeTaskStatus:XBDownloadTaskStatusRunning withRecord:taskRecord];
 }
 
-#pragma mark - 任务增加/删除/改变状态
+#pragma mark - 增加/删除/改变/查询任务
 
-- (void)changeTaskStatus:(XBDownloadTaskStatus)status withRecord:(XBDownloadTaskRecord *)record
-{
-    record.taskInfo.status = status;
-    if ([self.delegate respondsToSelector:@selector(managerTaskStatusChanged:atIndex:)]) {
-        record.sync++;
-        NSInteger idx = [self.taskQueue indexOfObject:record];
-        [self.delegate managerTaskStatusChanged:record.taskInfo atIndex:idx];
-        record.sync--;
-    }
-}
-
-- (void)removeTaskWithRecord:(XBDownloadTaskRecord *)record
-{
-    while (record.sync != 0) ;  //同步代理操作，保证在删除任务之前所有其他代理方法执行完成
-    if ([self.delegate respondsToSelector:@selector(managerTaskListChange:isDelete:atIndex:)]) {
-        NSInteger idx = [self.taskQueue indexOfObject:record];
-        [self.delegate managerTaskListChange:record.taskInfo isDelete:YES atIndex:idx];
-    }
-    
-    [self.taskQueue removeObject:record];
-    [self.taskRecord removeObjectForKey:record.taskInfo.taskKey];
-    [self writeInfoToFile];
-    
-    NSDictionary *dict = @{kManagerNotificationKeyTaskNumber : @(self.taskQueue.count)};
-    [[NSNotificationCenter defaultCenter] postNotificationName:kXBDownloadManagerNotification object:self userInfo:dict];
-}
-
+/**
+ *  将任务添加到任务队列和任务字典中
+ */
 - (void)addTaskWithRecord:(XBDownloadTaskRecord *)record
 {
     [self.taskQueue addObject:record];
-    self.taskRecord[record.taskInfo.taskKey] = record;
+    self.taskDict[record.taskInfo.taskKey] = record;
     [self writeInfoToFile];
-    if ([self.delegate respondsToSelector:@selector(managerTaskListChange:isDelete:atIndex:)]) {
-        record.sync++;
-        [self.delegate managerTaskListChange:record.taskInfo isDelete:NO atIndex:self.taskQueue.count-1];
-        record.sync--;
+    
+    if ([self.delegate respondsToSelector:@selector(managerAddTaskName:andStatus:forKey:atIndex:)]) {
+        NSInteger idx = self.taskQueue.count-1;
+        [self.delegateQueue addOperationWithBlock:^{
+            [self.delegate managerAddTaskName:record.taskInfo.name andStatus:record.taskInfo.status forKey:record.taskInfo.taskKey atIndex:idx];
+        }];
     }
     
     NSDictionary *dict = @{kManagerNotificationKeyTaskNumber : @(self.taskQueue.count)};
     [[NSNotificationCenter defaultCenter] postNotificationName:kXBDownloadManagerNotification object:self userInfo:dict];
+}
+
+/**
+ *  从队列删除任务
+ */
+- (void)removeTaskWithRecord:(XBDownloadTaskRecord *)record
+{
+    
+    NSInteger idx = [self.taskQueue indexOfObject:record];
+    [self.taskQueue removeObject:record];
+    [self.taskDict removeObjectForKey:record.taskInfo.taskKey];
+    [self writeInfoToFile];
+    
+    if ([self.delegate respondsToSelector:@selector(managerDeleteTaskForKey:atIndex:)]) {
+        //等待其他代理执行完成
+        [self.delegateQueue waitUntilAllOperationsAreFinished];
+        [self.delegateQueue addOperationWithBlock:^{
+            [self.delegate managerDeleteTaskForKey:record.taskInfo.taskKey atIndex:idx];
+        }];
+    }
+    
+    NSDictionary *dict = @{kManagerNotificationKeyTaskNumber : @(self.taskQueue.count)};
+    [[NSNotificationCenter defaultCenter] postNotificationName:kXBDownloadManagerNotification object:self userInfo:dict];
+}
+
+/**
+ *  改变record中的任务状态
+ */
+- (void)changeTaskStatus:(XBDownloadTaskStatus)status withRecord:(XBDownloadTaskRecord *)record
+{
+    record.taskInfo.status = status;
+    if ([self.delegate respondsToSelector:@selector(managerTaskStatusChanged:forKey:atIndex:)]) {
+        NSInteger idx = [self.taskQueue indexOfObject:record];
+        if (idx == NSNotFound) { XBERRORLOG(@"index = NSNotFound status = %zd",status); return;}
+        [self.delegateQueue addOperationWithBlock:^{
+            [self.delegate managerTaskStatusChanged:record.taskInfo.status forKey:record.taskInfo.taskKey atIndex:idx];
+        }];
+    }
+}
+
+/**
+ *  通过index查询任务信息
+ */
+
+- (XBDownloadTaskInfo *)taskInfoWithIndex:(NSInteger)idx
+{
+    if (idx >=  self.taskQueue.count) return nil;
+    return [self.taskQueue[idx].taskInfo copy];
+}
+
+/**
+ *  通过key查询任务信息
+ */
+- (XBDownloadTaskInfo *)taskInfoWithKey:(NSString *)key
+{
+    return [self.taskDict[key].taskInfo copy];
 }
 
 #pragma mark - 磁盘记录读写
 
 - (void)writeInfoToFile
 {
-    NSData *data = [NSKeyedArchiver archivedDataWithRootObject:self.taskQueue];
-    [data writeToFile:kAllTaskRecordFilePath atomically:YES];
+    [[[NSOperationQueue alloc] init] addOperationWithBlock:^{
+        NSData *data = [NSKeyedArchiver archivedDataWithRootObject:self.taskQueue];
+        [data writeToFile:kAllTaskRecordFilePath atomically:YES];
+    }];
 }
 
 - (NSMutableArray *)readInfoFromFile
@@ -501,6 +546,7 @@ static id _instance;
     NSInteger i = 1;
     
     do {
+        error = nil;
         [[NSFileManager defaultManager] moveItemAtPath:srcPath toPath:dstPath error:&error];
         if (error.code == NSFileWriteFileExistsError) {
             NSString *extension = [dstPath pathExtension];
@@ -509,7 +555,7 @@ static id _instance;
         }else if (error.code == NSFileWriteInvalidFileNameError){
             dstPath = [srcPath stringByAppendingPathExtension:[dstPath pathExtension]];
         }else if(error) {
-            NSLOG(@"file write error --- %@",error);
+            XBERRORLOG(@"move file error %@", error);
             [[NSFileManager defaultManager] removeItemAtPath:srcPath error:nil];
             break;
         }

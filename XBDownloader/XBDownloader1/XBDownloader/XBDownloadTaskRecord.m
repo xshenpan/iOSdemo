@@ -9,7 +9,8 @@
 #import "XBDownloadTaskRecord.h"
 #import "XBDownloadTaskInfo.h"
 
-static NSString * const kTaskInfo = @"XBDownloadTaskRecordTaskInfo";
+static NSString * const kTaskInfo = @"XBDownloadTaskInfo";
+static NSString * const kTaskStartup = @"XBDownloadTaskInfoTaskStartup";
 
 @implementation XBDownloadTaskRecord
 
@@ -17,6 +18,7 @@ static NSString * const kTaskInfo = @"XBDownloadTaskRecordTaskInfo";
 {
     self = [super init];
     if (self) {
+        self.startup = [coder decodeBoolForKey:kTaskStartup];
         self.taskInfo = [coder decodeObjectForKey:kTaskInfo];
     }
     return self;
@@ -24,6 +26,7 @@ static NSString * const kTaskInfo = @"XBDownloadTaskRecordTaskInfo";
 
 - (void)encodeWithCoder:(NSCoder *)aCoder
 {
+    [aCoder encodeBool:self.startup forKey:kTaskStartup];
     [aCoder encodeObject:self.taskInfo forKey:kTaskInfo];
 }
 
@@ -37,7 +40,9 @@ static NSString * const kTaskInfo = @"XBDownloadTaskRecordTaskInfo";
 
 - (void)dealloc
 {
-    NSLOG(@"%s", __func__);
+    XBINFOLOG(@"%s", __func__);
 }
+
+
 
 @end

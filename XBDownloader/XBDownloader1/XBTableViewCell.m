@@ -22,26 +22,12 @@
 
 @implementation XBTableViewCell
 
-- (void)awakeFromNib {
-    // Initialization code
-}
-
-- (void)setSelected:(BOOL)selected animated:(BOOL)animated {
-    [super setSelected:selected animated:animated];
-
-    // Configure the view for the selected state
-}
-
-+ (instancetype)cellWithTableView:(UITableView *)tableView andXBCell:(XBDownloadTaskInfo *)cellModel
+- (void)setInfo:(XBDownloadTaskInfo *)info
 {
-    static NSString * const ID = @"cell";
-    XBTableViewCell *cell = [tableView dequeueReusableCellWithIdentifier:ID];
-    if (cell == nil) {
-        cell = [[[NSBundle mainBundle] loadNibNamed:NSStringFromClass([self class]) owner:nil options:nil] lastObject];
-    }
+    _info = info;
+    
     NSString *status = nil;
-    switch (cellModel.status) {
-        case XBDownloadTaskStatusBorn:
+    switch (info.status) {
         case XBDownloadTaskStatusWaiting:
             status = @"等待下载";
             break;
@@ -57,9 +43,10 @@
         default:
             break;
     }
-    UIImage *img = nil;
-    NSString *extension = [cellModel.name pathExtension];
     
+    UIImage *img = nil;
+    NSString *extension = [info.name pathExtension];
+
     if ([extension compare:@"mp4" options:NSCaseInsensitiveSearch] == NSOrderedSame) {
         img = [UIImage imageNamed:@"mp4"];
     }else if ([extension compare:@"mp3" options:NSCaseInsensitiveSearch] == NSOrderedSame){
@@ -69,13 +56,22 @@
     }else{
         img = [UIImage imageNamed:@"file"];
     }
-    
-    cell.icon.image = img;
-    cell.status.text = status;
-    cell.name.text = cellModel.name;
-    cell.progress.text = [NSString stringWithFormat:@"%.2f%%", cellModel.progress*100];
-    cell.fileSizeLabel.text = [NSString stringWithFormat:@"%.1fM", cellModel.filesize*1.0/1024/1024];
-    cell.speedLabel.text = [NSString stringWithFormat:@"%.1fKB/s", cellModel.speed];
+
+    self.icon.image = img;
+    self.status.text = status;
+    self.name.text = info.name;
+    self.progress.text = [NSString stringWithFormat:@"%.2f%%", info.progress*100];
+    self.fileSizeLabel.text = [NSString stringWithFormat:@"%.1fM", info.filesize*1.0/1024/1024];
+    self.speedLabel.text = [NSString stringWithFormat:@"%.1fKB/s", info.speed];
+}
+
++ (instancetype)cellWithTableView:(UITableView *)tableView
+{
+    static NSString * const ID = @"cell";
+    XBTableViewCell *cell = [tableView dequeueReusableCellWithIdentifier:ID];
+    if (cell == nil) {
+        cell = [[[NSBundle mainBundle] loadNibNamed:NSStringFromClass([self class]) owner:nil options:nil] lastObject];
+    }
     
     return cell;
 }

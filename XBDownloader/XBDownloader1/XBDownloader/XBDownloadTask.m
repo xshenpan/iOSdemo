@@ -78,7 +78,7 @@
 {
     if (response.statusCode != 200 && response.statusCode != 206) {
         completionHandler(NSURLSessionResponseCancel);
-        NSLOG(@"%zd", response.statusCode);
+        XBINFOLOG(@"%zd", response.statusCode);
         return;
     }
     NSString *contentLength = response.allHeaderFields[@"Content-Length"];
@@ -124,7 +124,7 @@
 
 - (void)dealloc
 {
-    NSLOG(@"dealloc -- %@", [self.tmpPath lastPathComponent]);
+    XBINFOLOG(@"dealloc -- %@", [self.tmpPath lastPathComponent]);
 }
 
 @end

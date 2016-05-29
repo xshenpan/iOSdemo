@@ -360,6 +360,7 @@
 				EDE15E3A1CF8847C00C890B0 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
 	};

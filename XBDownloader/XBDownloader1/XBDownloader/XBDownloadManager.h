@@ -7,6 +7,7 @@
 //
 
 #import <UIKit/UIKit.h>
+#import "XBDownloadTaskInfo.h"
 
 @class XBDownloadManager;
 @class XBDownloadTaskInfo;
@@ -18,11 +19,12 @@ static NSString * const kManagerNotificationKeyTaskNumber = @"XBDownloadManagerT
 @protocol XBDownloadManagerDelegate <NSObject>
 @optional
 
-- (void)managerTaskProgressRefresh:(XBDownloadTaskInfo *)taskInfo atIndex:(NSInteger)idx;
-- (void)managerTaskList:(NSArray<XBDownloadTaskInfo *> *)taskList;
-- (void)managerTaskStatusChanged:(XBDownloadTaskInfo*)taskInfo atIndex:(NSInteger)idx;
-- (void)managerTask:(XBDownloadTaskInfo*)taskInfo didCompleteWithError:(NSError *)error atIndex:(NSInteger)idx;
-- (void)managerTaskListChange:(XBDownloadTaskInfo*)taskInfo isDelete:(BOOL)isDelete atIndex:(NSInteger)idx;
+- (void)managerAddTaskName:(NSString *)name andStatus:(XBDownloadTaskStatus)status forKey:(NSString *)key atIndex:(NSInteger)idx;
+- (void)managerDeleteTaskForKey:(NSString *)key atIndex:(NSInteger)idx;
+- (void)managerTaskFileLength:(NSInteger)fileLength forKey:(NSString *)key atIndex:(NSInteger)idx;
+- (void)managerRefreshTaskProgress:(CGFloat)progress speed:(CGFloat)speed forKey:(NSString *)key atIndex:(NSInteger)idx;
+- (void)managerTaskStatusChanged:(XBDownloadTaskStatus)status forKey:(NSString *)key atIndex:(NSInteger)idx;
+- (void)managerTaskCompleteWithError:(NSError *)error forKey:(NSString *)key atIndex:(NSInteger)idx;
 
 @end
 
@@ -30,7 +32,7 @@ static NSString * const kManagerNotificationKeyTaskNumber = @"XBDownloadManagerT
 /** 最大同时下载任务数 */
 @property (nonatomic, assign) NSInteger maxDownloadTask;
 /** 代理 */
-@property (nonatomic, weak) id<XBDownloadManagerDelegate> delegate;
+@property (nonatomic, weak, readonly) id<XBDownloadManagerDelegate> delegate;
 /** 任务数量 */
 @property (nonatomic, assign, readonly) NSInteger taskNumber;
 
@@ -44,12 +46,14 @@ static NSString * const kManagerNotificationKeyTaskNumber = @"XBDownloadManagerT
 - (void)startWithKey:(NSString *)key;
 - (void)pauseWithKey:(NSString *)key;
 - (void)cancelWithKey:(NSString *)key;
-
-//查询方法
+- (void)reloadWithKey:(NSString *)key;
+//查询任务
 - (XBDownloadTaskInfo *)taskInfoWithIndex:(NSInteger)idx;
 - (XBDownloadTaskInfo *)taskInfoWithKey:(NSString *)key;
-/** 添加一个下载任务,path=nil这默认在cache/xbdownload目录 路经以home开始 */
-- (NSString *)addDownloadTaskWithUrl:(NSString *)url andRelativePath:(NSString *)path taskExistReload:(BOOL (^)())reload;
+//设置代理
+- (void)setDelegate:(id<XBDownloadManagerDelegate>)delegate andDelegateQueue:(NSOperationQueue *)queue;
+/** 添加一个下载任务,path=nil这默认在cache/xbdownload目录 路经以home开始, key=nil 则key = url.md5string */
+- (NSString *)addDownloadTaskWithUrl:(NSString *)url andRelativePath:(NSString *)path taskKey:(NSString *)key taskExist:(void(^)(NSString *key))exist;
 
 + (instancetype)manager;
 

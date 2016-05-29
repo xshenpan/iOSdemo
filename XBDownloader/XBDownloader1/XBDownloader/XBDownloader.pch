@@ -8,12 +8,32 @@
 
 #ifdef __OBJC2__
 
-#define DEBUG   1
+#define DEBUG_LEVEL   2
 
-#ifdef DEBUG
-#define NSLOG  NSLog
+#if (DEBUG_LEVEL == 1)
+
+#define XBINFOLOG(...) NSLog(@"INFO:"__VA_ARGS__)
+#define XBWARNLOG(...) NSLog(@"WARNNING:"__VA_ARGS__)
+#define XBERRORLOG(...) NSLog(@"ERROR:"__VA_ARGS__)
+
+#elif (DEBUG_LEVEL == 2)
+
+#define XBINFOLOG(...)
+#define XBWARNLOG(...) NSLog(@"WARNNING:"__VA_ARGS__)
+#define XBERRORLOG(...) NSLog(@"ERROR:"__VA_ARGS__)
+
+#elif (DEBUG_LEVEL == 3)
+
+#define XBINFOLOG(...)
+#define XBWARNLOG(...)
+#define XBERRORLOG(...) NSLog(@"ERROR:"__VA_ARGS__)
+
 #else
-#define NSLOG(...)
+
+#define XBINFOLOG(...)
+#define XBWARNLOG(...)
+#define XBERRORLOG(...)
+
 #endif
 
 #define kDownloadDirictory [[NSSearchPathForDirectoriesInDomains(NSCachesDirectory, NSUserDomainMask, YES) lastObject] stringByAppendingPathComponent:@"xbdownload"]
