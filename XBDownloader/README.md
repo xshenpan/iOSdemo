@@ -3,7 +3,7 @@
 ## 说明：
 - XBDownloader是一个支持多任务断点下载的框架，在学习iOS网络时作为学习demo写的，由于是学习阶段写的东西，没有什么经验，所以代码中免不了许多BUG、考虑不周、思想错误、接口不合理、句子不通，单词错误（英语太菜了）等等问题。写这个小小的demo也是为了加强学习，希望大神对其中的各种错误轻喷
 
-![example](http://i4.buimg.com/d4c02af1488f3a46.png)
+![demo.gif](http://upload-images.jianshu.io/upload_images/1760801-db644afa1bf39446.gif?imageMogr2/auto-orient/strip)
 
 ## 用法
 ### 不关心具体的任务详情
