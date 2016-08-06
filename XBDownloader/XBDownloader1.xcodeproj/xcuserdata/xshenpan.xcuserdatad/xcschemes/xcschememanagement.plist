@@ -4,7 +4,7 @@
 <dict>
 	<key>SchemeUserState</key>
 	<dict>
-		<key>XBAlertView.xcscheme</key>
+		<key>XBDownloader1.xcscheme</key>
 		<dict>
 			<key>orderHint</key>
 			<integer>0</integer>
@@ -12,7 +12,7 @@
 	</dict>
 	<key>SuppressBuildableAutocreation</key>
 	<dict>
-		<key>ED2AF1091D55D486002BD67D</key>
+		<key>EDE15E201CF8847C00C890B0</key>
 		<dict>
 			<key>primary</key>
 			<true/>

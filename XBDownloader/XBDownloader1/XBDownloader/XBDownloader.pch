@@ -1,0 +1,41 @@
+//
+//  XBDownloader.pch
+//  07-断点下载
+//
+//  Created by xshenpan on 16/5/25.
+//  Copyright © 2016年 xshenpan. All rights reserved.
+//
+
+#ifdef __OBJC2__
+
+#define DEBUG_LEVEL   2
+
+#if (DEBUG_LEVEL == 1)
+
+#define XBINFOLOG(...) NSLog(@"INFO:"__VA_ARGS__)
+#define XBWARNLOG(...) NSLog(@"WARNNING:"__VA_ARGS__)
+#define XBERRORLOG(...) NSLog(@"ERROR:"__VA_ARGS__)
+
+#elif (DEBUG_LEVEL == 2)
+
+#define XBINFOLOG(...)
+#define XBWARNLOG(...) NSLog(@"WARNNING:"__VA_ARGS__)
+#define XBERRORLOG(...) NSLog(@"ERROR:"__VA_ARGS__)
+
+#elif (DEBUG_LEVEL == 3)
+
+#define XBINFOLOG(...)
+#define XBWARNLOG(...)
+#define XBERRORLOG(...) NSLog(@"ERROR:"__VA_ARGS__)
+
+#else
+
+#define XBINFOLOG(...)
+#define XBWARNLOG(...)
+#define XBERRORLOG(...)
+
+#endif
+
+#define kDownloadDirictory [[NSSearchPathForDirectoriesInDomains(NSCachesDirectory, NSUserDomainMask, YES) lastObject] stringByAppendingPathComponent:@"xbdownload"]
+
+#endif
